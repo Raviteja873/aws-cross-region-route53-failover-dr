@@ -308,7 +308,7 @@ The project is designed to provide hands-on understanding of:
 
 ![Architecture Diagram](images/architecture-diagram.png)
 
-)
+
 
 
 
