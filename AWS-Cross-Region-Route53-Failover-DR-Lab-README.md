@@ -1,16 +1,21 @@
 # AWS Cross-Region Route 53 Failover & Disaster Recovery Lab
 
-> **End-to-end GitHub documentation**
->
-> This document describes the complete implementation of a cross-region AWS web Disaster Recovery (DR) lab using Amazon Route 53 Failover Routing, Application Load Balancers, EC2, Nginx, VPC networking, IAM, and Systems Manager Session Manager.
->
-> **Primary Region:** Mumbai (`ap-south-1`)  
-> **Secondary / DR Region:** Hyderabad (`ap-south-2`)  
-> **Domain:** `ravitejaaws.dpdns.org`
+A hands-on, active-passive disaster recovery implementation using Amazon Route 53, Application Load Balancers, Amazon EC2, Nginx, VPC networking, IAM, and AWS Systems Manager Session Manager.
+
+| Environment | AWS Region | Role |
+|---|---|---|
+| Mumbai | `ap-south-1` | Primary |
+| Hyderabad | `ap-south-2` | Secondary / DR |
+
+**Application endpoint:** `http://ravitejaaws.dpdns.org`
+
+This document records the deployed architecture, configuration steps, validation checks, failover test, recovery process, troubleshooting notes, and resource teardown.
+
+> **Scope:** Web-tier disaster recovery only. Database replication and persistent-data replication are outside the scope of this implementation.
 
 ---
 
-## 1. Project Summary
+## Overview
 
 This project demonstrates an **active-passive cross-region Disaster Recovery architecture**.
 
@@ -76,12 +81,32 @@ Nginx
 ```
 
 ---
+## Contents
 
-# 2. Important Validation Before Deployment
+- [Architecture and design decisions](#architecture-and-design-decisions)
+- [Objectives](#objectives)
+- [Architecture](#architecture)
+- [Resource naming](#resource-naming)
+- [Prerequisites and cost](#prerequisites-and-cost)
+- [Mumbai primary environment](#mumbai-primary-environment)
+- [Hyderabad secondary environment](#hyderabad-secondary-environment)
+- [Domain and Route 53](#domain-and-route-53)
+- [Health and failover behavior](#health-and-failover-behavior)
+- [Validation and failover test](#validation-and-failover-test)
+- [Troubleshooting](#troubleshooting)
+- [Security and project scope](#security-and-project-scope)
+- [Teardown](#teardown)
+- [Validation checklist](#validation-checklist)
+- [Evidence checklist](#evidence-checklist)
+- [Repository layout](#repository-layout)
+- [References](#references)
+
+
+## Architecture and design decisions
 
 This section records the technical corrections made while validating the project.
 
-## 2.1 Regions are valid
+## 1 Regions are valid
 
 The project uses:
 
@@ -94,12 +119,12 @@ AWS currently lists both regions as valid AWS Regions.
 
 Official references:
 
-- https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions.html
-- https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-region-billing-codes.html
+- [AWS Regions](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions.html)
+- [AWS Region billing codes](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-region-billing-codes.html)
 
 ---
 
-## 2.2 Application Load Balancer requires two Availability Zones
+## 2 Application Load Balancer requires two Availability Zones
 
 An Application Load Balancer must use subnets from at least two Availability Zones.
 
@@ -121,11 +146,11 @@ When creating the ALB, verify that the two selected subnets belong to **differen
 
 Official reference:
 
-- https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-application-load-balancer.html
+- [Create an Application Load Balancer]([Elastic Load Balancing documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/)create-application-load-balancer.html)
 
 ---
 
-## 2.3 Route 53 health-check correction
+## 3 Route 53 health-check correction
 
 This project does **not** require separate Route 53 health checks for the EC2 instances.
 
@@ -150,12 +175,12 @@ AWS specifically documents this behavior.
 
 Official references:
 
-- https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html
-- https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-failover-types.html
+- [Route 53 failover alias records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html)
+- [Route 53 failover routing](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-failover-types.html)
 
 ---
 
-## 2.4 Correct Route 53 apex record name
+## 4 Correct Route 53 apex record name
 
 The hosted zone is:
 
@@ -183,11 +208,11 @@ AWS documents that when the record has the same name as the hosted zone, the Rec
 
 Official reference:
 
-- https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html
+- [Route 53 failover alias records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html)
 
 ---
 
-## 2.5 HTTP is used in this lab
+## 5 HTTP is used in this lab
 
 This lab uses:
 
@@ -208,7 +233,7 @@ Do not document this project as HTTPS unless an ACM certificate and HTTPS listen
 
 ---
 
-## 2.6 No NAT Gateway is required
+## 6 No NAT Gateway is required
 
 The simplified architecture places the EC2 instances in public subnets.
 
@@ -227,7 +252,7 @@ This keeps the lab simpler and avoids unnecessary NAT Gateway cost.
 
 ---
 
-## 2.7 No VPC peering is required
+## 7 No VPC peering is required
 
 Mumbai and Hyderabad do not need direct private network communication for this Route 53 DNS failover demonstration.
 
@@ -243,7 +268,8 @@ No VPC peering is required.
 
 ---
 
-# 3. Project Objectives
+
+## Objectives
 
 The project is designed to provide hands-on understanding of:
 
@@ -277,19 +303,17 @@ The project is designed to provide hands-on understanding of:
 
 ---
 
-# 4. Final Architecture
+
+## Architecture
 
 ![Architecture Diagram](images/architecture-diagram.png)
 
-> **SCREENSHOT PLACEHOLDER**
->
-> File to upload:
->
-> `images/architecture-diagram.png`
+
 
 ---
 
-# 5. Architecture Components
+
+## Architecture components
 
 ```text
                            INTERNET
@@ -324,7 +348,8 @@ The project is designed to provide hands-on understanding of:
 
 ---
 
-# 6. Resource Naming Standard
+
+## Resource naming
 
 Use the following names consistently.
 
@@ -422,7 +447,8 @@ Hyderabad-Secondary-ALB
 
 ---
 
-# 7. Prerequisites
+
+## Prerequisites and cost
 
 Before starting, make sure you have:
 
@@ -445,7 +471,8 @@ SSH is not required for the main workflow.
 
 ---
 
-# 8. Important Cost Warning
+
+### Cost considerations
 
 The following resources can incur charges depending on your account, region, Free Tier eligibility, current pricing, and usage:
 
@@ -463,7 +490,8 @@ After testing, delete resources that are no longer needed.
 
 ---
 
-# 9. Phase 1 — Create Mumbai Primary VPC
+
+## Mumbai primary environment
 
 Region:
 
@@ -474,7 +502,7 @@ ap-south-1
 
 ---
 
-## 9.1 Open VPC Console
+## 1 Open VPC Console
 
 1. Sign in to AWS Management Console.
 2. Select region:
@@ -485,7 +513,7 @@ ap-south-1
 
 ---
 
-## 9.2 Create VPC
+## 2 Create VPC
 
 Choose:
 
@@ -524,7 +552,7 @@ Create VPC
 
 ---
 
-## 9.3 Verify Mumbai VPC
+## 3 Verify Mumbai VPC
 
 Verify:
 
@@ -541,7 +569,8 @@ Available
 
 ---
 
-# 10. Phase 1 — Create Mumbai Public Subnet 1
+
+### Create Mumbai Public Subnet 1
 
 Go to:
 
@@ -586,7 +615,8 @@ Create subnet.
 
 ---
 
-# 11. Phase 1 — Create Mumbai Public Subnet 2
+
+### Create Mumbai Public Subnet 2
 
 Create another subnet in a **different Availability Zone**.
 
@@ -627,7 +657,8 @@ The exact AZ letters can vary by account; the important requirement is that they
 
 ---
 
-# 12. Phase 1 — Enable Public IPv4 Assignment
+
+### Enable Public IPv4 Assignment
 
 For the subnet where the EC2 will be launched:
 
@@ -648,11 +679,12 @@ The key requirement is that the EC2 instance used by this simplified public-subn
 
 AWS documentation:
 
-https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
+[VPC Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html)
 
 ---
 
-# 13. Phase 1 — Create Mumbai Internet Gateway
+
+### Create Mumbai Internet Gateway
 
 Go to:
 
@@ -685,7 +717,8 @@ Attach.
 
 ---
 
-# 14. Phase 1 — Create Mumbai Public Route Table
+
+### Create Mumbai Public Route Table
 
 Go to:
 
@@ -711,7 +744,7 @@ Create.
 
 ---
 
-## 14.1 Add Internet Route
+## 1 Add Internet Route
 
 Open:
 
@@ -744,7 +777,7 @@ Save.
 
 ---
 
-## 14.2 Associate Subnets
+## 2 Associate Subnets
 
 Go to:
 
@@ -779,11 +812,12 @@ Mumbai-Primary-IGW
 
 AWS documentation:
 
-https://docs.aws.amazon.com/vpc/latest/userguide/subnet-route-tables.html
+[VPC route tables](https://docs.aws.amazon.com/vpc/latest/userguide/subnet-route-tables.html)
 
 ---
 
-# 15. Phase 1 — Create Mumbai ALB Security Group
+
+### Create Mumbai ALB Security Group
 
 Open:
 
@@ -834,7 +868,8 @@ Create.
 
 ---
 
-# 16. Phase 1 — Create Mumbai EC2 Security Group
+
+### Create Mumbai EC2 Security Group
 
 Name:
 
@@ -895,7 +930,8 @@ EC2 SG
 
 ---
 
-# 17. Phase 1 — Create Mumbai IAM Role for SSM
+
+### Create Mumbai IAM Role for SSM
 
 Open:
 
@@ -933,11 +969,12 @@ Create role.
 
 AWS documentation:
 
-https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-instance-profile.html
+[Systems Manager instance profile](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-instance-profile.html)
 
 ---
 
-# 18. Phase 1 — Launch Mumbai EC2
+
+### Launch Mumbai EC2
 
 Go to:
 
@@ -998,7 +1035,8 @@ Mumbai-EC2-SSM-Role
 
 ---
 
-# 19. Phase 1 — Mumbai EC2 User Data
+
+### Mumbai EC2 User Data
 
 Use the following user data.
 
@@ -1072,7 +1110,8 @@ systemctl enable nginx
 
 ---
 
-# 20. Verify Mumbai EC2 with SSM
+
+### Verify Mumbai EC2 with SSM
 
 Open:
 
@@ -1122,7 +1161,8 @@ OK
 
 ---
 
-# 21. Verify Mumbai EC2 from Browser
+
+### Verify Mumbai EC2 from Browser
 
 Copy the EC2 public IPv4 address.
 
@@ -1155,7 +1195,8 @@ Nginx running?
 
 ---
 
-# 22. Phase 1 — Create Mumbai Target Group
+
+### Create Mumbai Target Group
 
 Open:
 
@@ -1223,7 +1264,8 @@ Create target group.
 
 ---
 
-# 23. Register Mumbai EC2 Target
+
+### Register Mumbai EC2 Target
 
 Open:
 
@@ -1255,7 +1297,8 @@ Healthy
 
 ---
 
-# 24. Phase 1 — Create Mumbai Application Load Balancer
+
+### Create Mumbai Application Load Balancer
 
 Open:
 
@@ -1328,11 +1371,12 @@ Create load balancer.
 
 AWS documentation:
 
-https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-application-load-balancer.html
+[Create an Application Load Balancer]([Elastic Load Balancing documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/)create-application-load-balancer.html)
 
 ---
 
-# 25. Verify Mumbai ALB
+
+### Verify Mumbai ALB
 
 Wait until the ALB becomes:
 
@@ -1362,7 +1406,8 @@ MUMBAI PRIMARY SERVER
 
 ---
 
-# 26. Mumbai Health Validation
+
+### Mumbai Health Validation
 
 Verify all layers:
 
@@ -1386,33 +1431,22 @@ Do not proceed until Mumbai is working.
 
 ---
 
-# 27. Screenshot Placeholder — Mumbai VPC
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/01-mumbai-vpc.png
-```
+### Evidence — Mumbai VPC
 
 ![Mumbai VPC](images/01-mumbai-vpc.png)
 
 ---
 
-# 28. Screenshot Placeholder — Mumbai Networking
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/02-mumbai-networking.png
-```
+### Evidence — Mumbai Networking
 
 ![Mumbai Networking](images/02-mumbai-networking.png)
 
 ---
 
-# 29. Phase 2 — Create Hyderabad Secondary VPC
+
+## Hyderabad secondary environment
 
 Switch region:
 
@@ -1443,7 +1477,8 @@ Create VPC.
 
 ---
 
-# 30. Phase 2 — Create Hyderabad Public Subnet 1
+
+### Create Hyderabad Public Subnet 1
 
 Create:
 
@@ -1465,7 +1500,8 @@ ap-south-2a
 
 ---
 
-# 31. Phase 2 — Create Hyderabad Public Subnet 2
+
+### Create Hyderabad Public Subnet 2
 
 Create:
 
@@ -1487,7 +1523,8 @@ ap-south-2b
 
 ---
 
-# 32. Phase 2 — Enable Public IPv4
+
+### Enable Public IPv4
 
 For the EC2 subnet:
 
@@ -1502,7 +1539,8 @@ Save.
 
 ---
 
-# 33. Phase 2 — Create Hyderabad Internet Gateway
+
+### Create Hyderabad Internet Gateway
 
 Create:
 
@@ -1519,7 +1557,8 @@ Hyderabad-Secondary
 
 ---
 
-# 34. Phase 2 — Create Hyderabad Route Table
+
+### Create Hyderabad Route Table
 
 Create:
 
@@ -1550,7 +1589,8 @@ Hyderabad-Public-Subnet-2
 
 ---
 
-# 35. Phase 2 — Create Hyderabad ALB Security Group
+
+### Create Hyderabad ALB Security Group
 
 Create:
 
@@ -1575,7 +1615,8 @@ All traffic
 
 ---
 
-# 36. Phase 2 — Create Hyderabad EC2 Security Group
+
+### Create Hyderabad EC2 Security Group
 
 Create:
 
@@ -1601,7 +1642,8 @@ All traffic
 
 ---
 
-# 37. Phase 2 — Create Hyderabad IAM Role
+
+### Create Hyderabad IAM Role
 
 Create IAM role:
 
@@ -1617,7 +1659,8 @@ AmazonSSMManagedInstanceCore
 
 ---
 
-# 38. Phase 2 — Launch Hyderabad EC2
+
+### Launch Hyderabad EC2
 
 Launch:
 
@@ -1643,7 +1686,8 @@ Hyderabad-EC2-SSM-Role
 
 ---
 
-# 39. Phase 2 — Hyderabad User Data
+
+### Hyderabad User Data
 
 Use:
 
@@ -1717,7 +1761,8 @@ systemctl enable nginx
 
 ---
 
-# 40. Verify Hyderabad EC2 with SSM
+
+### Verify Hyderabad EC2 with SSM
 
 Open:
 
@@ -1749,7 +1794,8 @@ OK
 
 ---
 
-# 41. Verify Hyderabad Application
+
+### Verify Hyderabad Application
 
 Open:
 
@@ -1769,7 +1815,8 @@ Status: SECONDARY / DR
 
 ---
 
-# 42. Phase 2 — Create Hyderabad Target Group
+
+### Create Hyderabad Target Group
 
 Create target group:
 
@@ -1820,7 +1867,8 @@ Healthy
 
 ---
 
-# 43. Phase 2 — Create Hyderabad ALB
+
+### Create Hyderabad ALB
 
 Create:
 
@@ -1872,7 +1920,8 @@ Create.
 
 ---
 
-# 44. Verify Hyderabad ALB
+
+### Verify Hyderabad ALB
 
 Open the ALB DNS name:
 
@@ -1890,20 +1939,15 @@ Do not proceed until the Hyderabad ALB and target group are healthy.
 
 ---
 
-# 45. Screenshot Placeholder — Hyderabad Nginx Health Check
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/03-hyderabad-nginx-health-check.png
-```
+### Evidence — Hyderabad Nginx Health Check
 
 ![Hyderabad Nginx Health Check](images/03-hyderabad-nginx-health-check.png)
 
 ---
 
-# 46. Phase 3 — Register / Configure the Domain
+
+## Domain and Route 53
 
 The project uses:
 
@@ -1929,7 +1973,8 @@ Route 53 Public Hosted Zone
 
 ---
 
-# 47. Create Route 53 Public Hosted Zone
+
+### Create Route 53 Public Hosted Zone
 
 Open:
 
@@ -1959,11 +2004,12 @@ Route 53 automatically creates NS and SOA records for the public hosted zone.
 
 AWS documentation:
 
-https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-configuring-new-domain.html
+[Route 53 DNS configuration](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-configuring-new-domain.html)
 
 ---
 
-# 48. Copy Route 53 Name Servers
+
+### Copy Route 53 Name Servers
 
 Open:
 
@@ -1988,7 +2034,8 @@ What matters is that all four correct Route 53 name servers are configured.
 
 ---
 
-# 49. Configure DigitalPlat Name Servers
+
+### Configure DigitalPlat Name Servers
 
 At the domain provider:
 
@@ -2012,46 +2059,29 @@ Route 53 Hosted Zone
 
 ---
 
-# 50. Screenshot Placeholder — Domain Registration
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/04-route53-domain-registration.png
-```
+### Evidence — Domain Registration
 
 ![Domain Registration](images/04-route53-domain-registration.png)
 
 ---
 
-# 51. Screenshot Placeholder — Route 53 Hosted Zone
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/05-route53-hosted-zone.png
-```
+### Evidence — Route 53 Hosted Zone
 
 ![Route 53 Hosted Zone](images/05-route53-hosted-zone.png)
 
 ---
 
-# 52. Screenshot Placeholder — Route 53 Name Servers
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/06-route53-nameservers.png
-```
+### Evidence — Route 53 Name Servers
 
 ![Route 53 Name Servers](images/06-route53-nameservers.png)
 
 ---
 
-# 53. Verify DNS Delegation
+
+### Verify DNS Delegation
 
 From a Windows Command Prompt:
 
@@ -2071,7 +2101,8 @@ If the domain has just been delegated, DNS propagation can take time.
 
 ---
 
-# 54. Phase 4 — Create Route 53 Primary Failover Record
+
+### Create Route 53 Primary Failover Record
 
 Open:
 
@@ -2127,7 +2158,7 @@ Mumbai-Primary
 
 Create record.
 
-### Critical
+**Important:**
 
 Do not type:
 
@@ -2141,20 +2172,15 @@ Leave it blank.
 
 ---
 
-# 55. Screenshot Placeholder — Primary Record
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/07-route53-primary-record.png
-```
+### Evidence — Primary Record
 
 ![Route 53 Primary Record](images/07-route53-primary-record.png)
 
 ---
 
-# 56. Phase 4 — Create Route 53 Secondary Failover Record
+
+### Create Route 53 Secondary Failover Record
 
 Create another record.
 
@@ -2208,20 +2234,15 @@ Create.
 
 ---
 
-# 57. Screenshot Placeholder — Secondary Record
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/08-route53-secondary-record.png
-```
+### Evidence — Secondary Record
 
 ![Route 53 Secondary Record](images/08-route53-secondary-record.png)
 
 ---
 
-# 58. Final Route 53 Record Set
+
+### Final Route 53 Record Set
 
 The hosted zone should contain approximately:
 
@@ -2244,20 +2265,15 @@ Different ALB target
 
 ---
 
-# 59. Screenshot Placeholder — Complete Failover Configuration
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/09-route53-failover-complete.png
-```
+### Evidence — Complete Failover Configuration
 
 ![Complete Route 53 Failover Configuration](images/09-route53-failover-complete.png)
 
 ---
 
-# 60. Understand the Health Chain
+
+## Health and failover behavior
 
 This is one of the most important parts of the project.
 
@@ -2308,11 +2324,12 @@ Failover to Secondary
 
 AWS documentation:
 
-https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html
+[Route 53 failover alias records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html)
 
 ---
 
-# 61. Important Health Check Behavior
+
+### Important Health Check Behavior
 
 For an Application Load Balancer target group using an EC2 instance target:
 
@@ -2353,11 +2370,12 @@ Wait for the target health state to change.
 
 Official reference:
 
-https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html
+[ALB target group health checks]([Elastic Load Balancing documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/)target-group-health-checks.html)
 
 ---
 
-# 62. Phase 5 — Test Normal Operation
+
+## Validation and failover test
 
 Open:
 
@@ -2395,33 +2413,22 @@ Nginx
 
 ---
 
-# 63. Screenshot Placeholder — DNS Resolution
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/10-route53-dns-resolution.png
-```
+### Evidence — DNS Resolution
 
 ![DNS Resolution](images/10-route53-dns-resolution.png)
 
 ---
 
-# 64. Screenshot Placeholder — Primary Browser Test
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/11-route53-primary-browser-test.png
-```
+### Evidence — Primary Browser Test
 
 ![Primary Browser Test](images/11-route53-primary-browser-test.png)
 
 ---
 
-# 65. Phase 6 — Start Disaster Recovery Test
+
+### Start Disaster Recovery Test
 
 The goal is to simulate an application failure in Mumbai.
 
@@ -2433,7 +2440,8 @@ This is safer and reversible.
 
 ---
 
-# 66. Connect to Mumbai Using SSM
+
+### Connect to Mumbai Using SSM
 
 Open:
 
@@ -2459,7 +2467,8 @@ active (running)
 
 ---
 
-# 67. Stop Mumbai Nginx
+
+### Stop Mumbai Nginx
 
 Run:
 
@@ -2481,20 +2490,15 @@ inactive
 
 ---
 
-# 68. Screenshot Placeholder — Failover Trigger
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/12-route53-failover-trigger.png
-```
+### Evidence — Failover Trigger
 
 ![Failover Trigger](images/12-route53-failover-trigger.png)
 
 ---
 
-# 69. Wait for Mumbai Target to Become Unhealthy
+
+### Wait for Mumbai Target to Become Unhealthy
 
 Open:
 
@@ -2522,20 +2526,15 @@ Do not assume a fixed number of seconds.
 
 ---
 
-# 70. Screenshot Placeholder — Primary Unhealthy
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/13-route53-primary-unhealthy.png
-```
+### Evidence — Primary Unhealthy
 
 ![Primary Unhealthy](images/13-route53-primary-unhealthy.png)
 
 ---
 
-# 71. Test Failover
+
+### Test Failover
 
 After Mumbai is confirmed unhealthy, open:
 
@@ -2557,20 +2556,15 @@ This proves that the Secondary region is serving the application.
 
 ---
 
-# 72. Screenshot Placeholder — Failover to Secondary
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/14-route53-failover-to-secondary.png
-```
+### Evidence — Failover to Secondary
 
 ![Failover to Secondary](images/14-route53-failover-to-secondary.png)
 
 ---
 
-# 73. Failure Flow Demonstrated
+
+### Failure Flow Demonstrated
 
 ```text
 Mumbai Nginx
@@ -2605,7 +2599,8 @@ Nginx
 
 ---
 
-# 74. Phase 7 — Recover Mumbai
+
+### Recover Mumbai
 
 Connect to:
 
@@ -2641,7 +2636,8 @@ active (running)
 
 ---
 
-# 75. Verify Mumbai Health Endpoint
+
+### Verify Mumbai Health Endpoint
 
 Run:
 
@@ -2657,7 +2653,8 @@ OK
 
 ---
 
-# 76. Wait for Target Recovery
+
+### Wait for Target Recovery
 
 Open:
 
@@ -2679,20 +2676,15 @@ The exact time depends on the configured health-check settings.
 
 ---
 
-# 77. Screenshot Placeholder — Primary Recovery
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/15-route53-primary-recovery.png
-```
+### Evidence — Primary Recovery
 
 ![Primary Recovery](images/15-route53-primary-recovery.png)
 
 ---
 
-# 78. Verify Final Recovery
+
+### Verify Final Recovery
 
 Open:
 
@@ -2718,20 +2710,15 @@ DNS responses can be cached by recursive DNS resolvers and clients. Therefore re
 
 ---
 
-# 79. Screenshot Placeholder — Final Recovery
 
-Add your screenshot here.
-
-```text
-Screenshot file:
-images/16-route53-final-recovery.png
-```
+### Evidence — Final Recovery
 
 ![Final Recovery](images/16-route53-final-recovery.png)
 
 ---
 
-# 80. Complete End-to-End Traffic Flow
+
+## End-to-end traffic flow
 
 ## Normal
 
@@ -2793,7 +2780,8 @@ images/16-route53-final-recovery.png
 
 ---
 
-# 81. Route 53 Failover Record Summary
+
+## Route 53 configuration summary
 
 | Property | Mumbai | Hyderabad |
 |---|---|---|
@@ -2810,11 +2798,12 @@ AWS explicitly documents this active-passive configuration.
 
 Reference:
 
-https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-failover-types.html
+[Route 53 failover routing](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-failover-types.html)
 
 ---
 
-# 82. Network Design Summary
+
+## Network design summary
 
 ## Mumbai
 
@@ -2848,7 +2837,8 @@ VPC
 
 ---
 
-# 83. Resource Inventory
+
+## Resource inventory
 
 ## Mumbai
 
@@ -2886,7 +2876,8 @@ VPC
 
 ---
 
-# 84. AWS Services Used
+
+## AWS services
 
 | Service | Why it is used |
 |---|---|
@@ -2907,7 +2898,8 @@ VPC
 
 ---
 
-# 85. Why an ALB Is Used
+
+### Application Load Balancer
 
 The ALB provides a stable regional endpoint.
 
@@ -2944,7 +2936,8 @@ This provides:
 
 ---
 
-# 86. Why a Target Group Is Used
+
+### Target Groups
 
 The Target Group connects the ALB to the EC2 application.
 
@@ -2976,7 +2969,8 @@ OK
 
 ---
 
-# 87. Why the `/health` Endpoint Is Used
+
+### Health endpoint
 
 The health endpoint is intentionally simple.
 
@@ -2996,7 +2990,8 @@ This gives the load balancer a simple application health signal.
 
 ---
 
-# 88. Why SSM Is Used
+
+### Systems Manager Session Manager
 
 The project uses AWS Systems Manager Session Manager instead of requiring SSH.
 
@@ -3017,11 +3012,15 @@ AmazonSSMManagedInstanceCore
 
 Reference:
 
-https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-instance-profile.html
+[Systems Manager instance profile](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-instance-profile.html)
 
 ---
 
-# 89. Troubleshooting — SSM Not Connecting
+
+## Troubleshooting
+
+
+### Troubleshooting — SSM
 
 Check:
 
@@ -3045,7 +3044,8 @@ Outbound security-group access
 
 ---
 
-# 90. Troubleshooting — Target Unhealthy
+
+### Troubleshooting — target health
 
 Check EC2:
 
@@ -3087,7 +3087,8 @@ The EC2 security group must allow HTTP from the ALB security group.
 
 ---
 
-# 91. Troubleshooting — ALB Does Not Open
+
+### Troubleshooting — ALB
 
 Check:
 
@@ -3102,7 +3103,8 @@ Listener forwards to correct Target Group
 
 ---
 
-# 92. Troubleshooting — Domain Does Not Resolve
+
+### Troubleshooting — DNS
 
 Check:
 
@@ -3138,7 +3140,8 @@ If the domain was recently delegated, allow time for DNS changes to propagate.
 
 ---
 
-# 93. Troubleshooting — Route 53 Failover Does Not Happen
+
+### Troubleshooting — Route 53 failover
 
 Verify all of the following:
 
@@ -3163,7 +3166,8 @@ DNS caching can delay visible changes.
 
 ---
 
-# 94. Troubleshooting — Wrong Route 53 Record Name
+
+### Troubleshooting — record name
 
 Incorrect:
 
@@ -3186,7 +3190,8 @@ ravitejaaws.dpdns.org
 
 ---
 
-# 95. Troubleshooting — Browser Still Shows Mumbai
+
+### Troubleshooting — DNS caching
 
 If Mumbai was recently marked unhealthy, a browser or recursive DNS resolver may still have a cached answer.
 
@@ -3204,7 +3209,8 @@ Do not interpret immediate browser persistence as proof that Route 53 failover i
 
 ---
 
-# 96. Security Checklist
+
+## Security and project scope
 
 ```text
 [ ] Do not commit AWS access keys
@@ -3220,7 +3226,8 @@ Do not interpret immediate browser persistence as proof that Route 53 failover i
 
 ---
 
-# 97. Project Limitations
+
+### Project limitations
 
 This is a learning-focused web-tier Disaster Recovery project.
 
@@ -3251,7 +3258,8 @@ and not as a complete production application DR architecture.
 
 ---
 
-# 98. RPO and RTO
+
+### RPO and RTO
 
 ## RPO
 
@@ -3286,7 +3294,8 @@ Therefore do not claim a fixed RTO from this lab.
 
 ---
 
-# 99. Production Improvements
+
+### Production considerations
 
 A production architecture could add:
 
@@ -3344,7 +3353,8 @@ AWS CloudFormation
 
 ---
 
-# 100. Cleanup — Important
+
+## Teardown
 
 Delete resources after the lab if they are no longer required.
 
@@ -3352,7 +3362,7 @@ Perform cleanup carefully.
 
 ---
 
-## 100.1 Route 53
+## 1 Route 53
 
 Delete:
 
@@ -3367,7 +3377,7 @@ Before deleting the hosted zone, make sure you understand that deleting it remov
 
 ---
 
-## 100.2 Mumbai
+## 2 Mumbai
 
 Delete:
 
@@ -3398,7 +3408,7 @@ The console may require dependencies to be removed before a VPC can be deleted.
 
 ---
 
-## 100.3 Hyderabad
+## 3 Hyderabad
 
 Delete:
 
@@ -3422,7 +3432,7 @@ Hyderabad-Secondary VPC
 
 ---
 
-## 100.4 IAM
+## 4 IAM
 
 If the IAM roles were created only for this lab:
 
@@ -3437,7 +3447,8 @@ Do not delete IAM roles that are required by other workloads.
 
 ---
 
-# 101. Final Validation Checklist
+
+## Validation checklist
 
 Before declaring the project complete:
 
@@ -3511,7 +3522,8 @@ Before declaring the project complete:
 
 ---
 
-# 102. Screenshot Checklist
+
+## Evidence checklist
 
 Store screenshots in:
 
@@ -3545,7 +3557,8 @@ architecture-diagram.png
 
 ---
 
-# 103. Recommended GitHub Repository Structure
+
+## Repository layout
 
 ```text
 AWS-Cross-Region-Route53-Failover/
@@ -3574,358 +3587,71 @@ AWS-Cross-Region-Route53-Failover/
 
 ---
 
-# 104. Git Commands
 
-From the repository directory:
-
-```bash
-git init
-```
-
-Check:
-
-```bash
-git status
-```
-
-Add all files:
-
-```bash
-git add .
-```
-
-Review staged files:
-
-```bash
-git diff --cached
-```
-
-Commit:
-
-```bash
-git commit -m "Add AWS cross-region Route 53 failover DR lab"
-```
-
-Rename branch:
-
-```bash
-git branch -M main
-```
-
-Add your GitHub repository:
-
-```bash
-git remote add origin <YOUR_GITHUB_REPOSITORY_URL>
-```
-
-Push:
-
-```bash
-git push -u origin main
-```
-
----
-
-# 105. GitHub Pre-Push Security Check
-
-Before:
-
-```bash
-git push
-```
-
-run:
-
-```bash
-git status
-```
-
-Make sure you are not committing:
-
-```text
-.pem
-.csv containing credentials
-.env
-AWS access keys
-AWS secret keys
-passwords
-tokens
-```
-
-You can also review:
-
-```bash
-git diff --cached
-```
-
----
-
-# 106. Final Project Architecture in One View
-
-```text
-                                  INTERNET
-                                      |
-                                      v
-                          ravitejaaws.dpdns.org
-                                      |
-                                      v
-                             AMAZON ROUTE 53
-                             FAILOVER ROUTING
-                               /          \
-                              /            \
-                             v              v
-                    MUMBAI PRIMARY       HYDERABAD DR
-                     ap-south-1           ap-south-2
-                          |                    |
-                     +----+----+          +----+----+
-                     |         |          |         |
-                  Public    Public      Public    Public
-                  Subnet   Subnet      Subnet   Subnet
-                     |         |          |         |
-                     +----+----+          +----+----+
-                          |                    |
-                          v                    v
-                       Mumbai                Hyderabad
-                         ALB                   ALB
-                          |                    |
-                          v                    v
-                    Target Group          Target Group
-                          |                    |
-                          v                    v
-                       EC2                  EC2
-                          |                    |
-                          v                    v
-                       Nginx                Nginx
-                          |                    |
-                          v                    v
-                       Web App              Web App
-```
-
----
-
-# 107. Final Learning Outcome
-
-This project demonstrates how to build and test an AWS multi-region web Disaster Recovery solution.
-
-The key concept is:
-
-```text
-Primary Region Healthy
-        |
-        v
-Route 53 → Mumbai
-```
-
-When Primary becomes unhealthy:
-
-```text
-Primary Region Unhealthy
-        |
-        v
-Route 53 → Hyderabad
-```
-
-After recovery:
-
-```text
-Primary Region Healthy Again
-        |
-        v
-Route 53 can prefer Primary again
-```
-
-The project therefore combines:
-
-```text
-AWS Networking
-+
-EC2
-+
-Linux
-+
-Nginx
-+
-IAM
-+
-SSM
-+
-Application Load Balancer
-+
-Target Groups
-+
-Health Checks
-+
-Route 53
-+
-DNS Failover
-+
-Disaster Recovery
-```
-
----
-
-# 108. Official AWS References
+## References
 
 The following official AWS documentation was used to validate the architecture and important configuration behavior.
 
 ### AWS Regions
 
-https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions.html
+[AWS Regions](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions.html)
 
 ### VPC Internet Gateway
 
-https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
+[VPC Internet Gateway](https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html)
 
 ### VPC Route Tables
 
-https://docs.aws.amazon.com/vpc/latest/userguide/subnet-route-tables.html
+[VPC route tables](https://docs.aws.amazon.com/vpc/latest/userguide/subnet-route-tables.html)
 
 ### Application Load Balancer
 
-https://docs.aws.amazon.com/elasticloadbalancing/latest/application/
+[Elastic Load Balancing documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/)
 
 ### Create an Application Load Balancer
 
-https://docs.aws.amazon.com/elasticloadbalancing/latest/application/create-application-load-balancer.html
+[Create an Application Load Balancer]([Elastic Load Balancing documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/)create-application-load-balancer.html)
 
 ### ALB Target Group Health Checks
 
-https://docs.aws.amazon.com/elasticloadbalancing/latest/application/target-group-health-checks.html
+[ALB target group health checks]([Elastic Load Balancing documentation](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/)target-group-health-checks.html)
 
 ### Route 53 Failover Alias Records
 
-https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html
+[Route 53 failover alias records](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/resource-record-sets-values-failover-alias.html)
 
 ### Route 53 Active-Passive Failover
 
-https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-failover-types.html
+[Route 53 failover routing](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-failover-types.html)
 
 ### Route 53 DNS Configuration
 
-https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-configuring-new-domain.html
+[Route 53 DNS configuration](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/dns-configuring-new-domain.html)
 
 ### Systems Manager Session Manager IAM Permissions
 
-https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-instance-profile.html
+[Systems Manager instance profile](https://docs.aws.amazon.com/systems-manager/latest/userguide/session-manager-getting-started-instance-profile.html)
 
 ---
 
-# 109. Final Conclusion
 
-This project implements a practical **AWS Cross-Region Route 53 Failover and Disaster Recovery Lab**.
+## Project outcome
 
-The Primary environment runs in:
-
-```text
-Mumbai
-ap-south-1
-```
-
-The Secondary Disaster Recovery environment runs in:
+The completed environment demonstrates active-passive cross-region web failover:
 
 ```text
-Hyderabad
-ap-south-2
+Normal operation
+User → Route 53 → Mumbai ALB → Mumbai EC2 → Nginx
+
+Mumbai application failure
+User → Route 53 → Hyderabad ALB → Hyderabad EC2 → Nginx
+
+Mumbai recovery
+User → Route 53 → Mumbai ALB → Mumbai EC2 → Nginx
 ```
 
-The user accesses the application through:
-
-```text
-http://ravitejaaws.dpdns.org
-```
-
-Amazon Route 53 provides the DNS failover layer.
-
-Each region contains:
-
-```text
-VPC
- |
- +-- Public Subnets
- |
- +-- Internet Gateway
- |
- +-- Route Table
- |
- +-- Security Groups
- |
- +-- EC2
- |
- +-- Nginx
- |
- +-- Target Group
- |
- +-- Application Load Balancer
-```
-
-The ALB performs application target health checks.
-
-Route 53 uses `Evaluate Target Health = Yes` on the ALB alias failover records.
-
-During normal operation:
-
-```text
-Route 53
-   |
-   v
-Mumbai Primary
-```
-
-During a simulated Mumbai application failure:
-
-```text
-Route 53
-   |
-   v
-Hyderabad Secondary
-```
-
-After Mumbai recovers:
-
-```text
-Route 53
-   |
-   v
-Mumbai Primary
-```
-
-This project demonstrates the complete lifecycle:
-
-```text
-DESIGN
-  ↓
-NETWORKING
-  ↓
-EC2
-  ↓
-NGINX
-  ↓
-ALB
-  ↓
-HEALTH CHECK
-  ↓
-ROUTE 53
-  ↓
-DNS DELEGATION
-  ↓
-FAILOVER
-  ↓
-DISASTER RECOVERY TEST
-  ↓
-RECOVERY
-  ↓
-VALIDATION
-  ↓
-CLEANUP
-```
-
-**Project completed: AWS Cross-Region Route 53 Failover & Disaster Recovery Lab.**
-
----
+The implementation provides a practical demonstration of DNS-based regional failover, ALB target health, EC2 management through Session Manager, and recovery validation. It is intended as a learning and portfolio implementation rather than a complete production DR platform.
 
 ## Author
 
 **Ravi Teja**
-
-MCA Final-Year Student | AWS Cloud & DevOps Learner
-
