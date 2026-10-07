@@ -306,7 +306,8 @@ The project is designed to provide hands-on understanding of:
 
 ## Architecture
 
-![Architecture Diagram](images/architecture-diagram.png)
+![Architecture Diagram](<img width="1536" height="1024" alt="architecture-diagram png" src="https://github.com/user-attachments/assets/8057af29-fbad-4d76-bb06-6e92e5af3543" />
+)
 
 
 
