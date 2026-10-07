@@ -1942,9 +1942,7 @@ Do not proceed until the Hyderabad ALB and target group are healthy.
 ---
 
 
-### Evidence — Hyderabad Nginx Health Check
 
-![Hyderabad Nginx Health Check](images/03-hyderabad-nginx-health-check.png)
 
 ---
 
