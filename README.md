@@ -825,4 +825,4 @@ Normal traffic restored
 
 **Ravi Teja**
 
-MCA Final-Year Student | AWS Cloud & DevOps Learner
+MCA  Student | AWS Cloud Learner
