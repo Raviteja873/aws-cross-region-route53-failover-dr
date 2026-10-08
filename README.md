@@ -175,8 +175,8 @@ The VPC contains the public networking required for the internet-facing ALB and 
 
 Two public subnets are used for the regional load balancer:
 
-- `Mumbai-Public-Subnet-1` — `10.10.1.0/24`
-- `Mumbai-Public-Subnet-2` — `10.10.2.0/24`
+- `Mumbai-Public-Subnet-1` — `10.10.16.0/20`
+- `Mumbai-Public-Subnet-2` — `10.10.0.0/20`
 
 The subnets provide multi-AZ placement for the internet-facing ALB.
 
@@ -337,8 +337,8 @@ The Hyderabad environment provides the secondary application stack used when the
 
 Two public subnets are used:
 
-- `Hyderabad-Public-Subnet-1` — `10.20.1.0/24`
-- `Hyderabad-Public-Subnet-2` — `10.20.2.0/24`
+- `Hyderabad-Public-Subnet-1` — `10.20.0.0/20`
+- `Hyderabad-Public-Subnet-2` — `10.20.16.0/20`
 
 ![Hyderabad Public Subnets](images/03-hyderabad-public-subnets.png)
 
