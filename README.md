@@ -275,6 +275,7 @@ OK
 ```
 
 ![Mumbai Nginx Health Check](images/03-mumbai-nginx-health-check.png)
+Note: The HTML code shown in the screenshot was used for testing purposes during the initial setup. The test content was modified afterward and is not part of the final application implementation.
 
 ---
 
